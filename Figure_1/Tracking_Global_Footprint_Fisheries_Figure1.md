@@ -25,8 +25,8 @@ theme_gfw_paper <-  theme(text = element_text(family="Arial", face="bold", size=
 Load shapefile downloaded from Natural Earth (110m resolution)
 
 ``` r
-land_df <- read_sf('~/Documents/GlobalFishingWatch/shapefiles/ne_110m_land/ne_110m_land/ne_110m_land.shp', quiet = TRUE)
-#setwd("../data/ne_110m_land") # This shapefile is available from http://www.naturalearthdata.com/downloads/110m-physical-vectors/110m-land/
+land_df <- read_sf('../data/ne_110m_land/ne_110m_land.shp', quiet = TRUE)
+# This shapefile is available from http://www.naturalearthdata.com/downloads/110m-physical-vectors/110m-land/
 ```
 
 #### SQL query for Total Fishing Effort (0.5 degree)
