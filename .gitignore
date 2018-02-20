@@ -1,3 +1,7 @@
+.DS_Store
+.httr-oauth
+bigquery_credentials.dat
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
