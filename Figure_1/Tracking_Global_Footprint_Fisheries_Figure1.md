@@ -155,40 +155,6 @@ trawler_effort_05 = fishing_effort_by_type_05 %>%
                lon_bin < 180) 
 ```
 
-#### Import and process NPP data
-
-``` r
-#Generating the Global Raster NPP Figure in R
-
-setwd("../data")
-#RcppCNPy allows loading of numpy array into R
-library(RcppCNPy)
-#load the chlorophyll numpy array and convert to dataframe
-#data is 0.25 degree cell npp, so 1440 columns, 720 rows.
-chloro = npyLoad("chlorophyll.npy")
-chloro = data.frame(chloro)
-
-#assign lat and lon values to row/columns
-names(chloro) = as.character(seq(-180,179.75, 0.25))
-rownames(chloro) = as.character(seq(-89.75,90, 0.25))
-
-library(dplyr)
-#add specify lat as row names using dplyr
-chloro = add_rownames(chloro, var = "lat")
-
-library(tidyr)
-#reshape into 'long' format...row names are already included in gather
-#so just have to specify lon, and assign values to npp
-chloro.2 = gather(chloro, "lon", "npp", 2:ncol(chloro))
-chloro.2 = data.frame(chloro.2)
-chloro.2$lat = as.numeric(chloro.2$lat)
-chloro.2$lon = as.numeric(chloro.2$lon)
-chloro.2$npp = as.numeric(chloro.2$npp)
-chloro.2$npp = ifelse(chloro.2$npp == 0, NA, chloro.2$npp)
-chloro.2$npp = ifelse(chloro.2$npp > 20000, 20000, chloro.2$npp)
-
-library(RColorBrewer)
-```
 
 #### Generating Fishing Effort Figure Panels
 
@@ -328,47 +294,7 @@ trawling_05
 
 ![](Tracking_Global_Footprint_Fisheries_Figure1_files/figure-markdown_github/unnamed-chunk-15-1.png)
 
-#### Generating NPP panel
 
-``` r
-color_grad = (c('white',"#EDF8E9", "#C7E9C0", "#A1D99B", "#74C476", "#31A354", "#006D2C")) #white -> greens 
-cont_fill = 'white'#'grey30'
-back_fill = 'white'#'black' #'#202A50'
-
-chloro.2 <- chloro.2 %>% 
-    mutate(logNPP = log10(npp)) %>% 
-    mutate(logNPP = ifelse(logNPP >= 4.25, 4.25, logNPP)) %>%
-    mutate(logNPP = ifelse(logNPP <= 3.25, 3.25, logNPP))
-
-cont_fill = 'white'
-npp_plot = ggplot() +
-    geom_raster(data = chloro.2, aes(lon, lat, fill = npp)) +
-    geom_polygon(data = land_df, aes(long, lat, group = group), 
-                 color = 'grey60', fill = cont_fill ) +
-    scale_fill_gradient2('Net Primary Productivity (x1000)',  
-                         low = 'white',#e7f9dc',
-                         mid = '#f7fcf4', #e6f9da',
-                         high = '#31a354',
-                         midpoint = 4000,
-                         na.value='white',
-                         breaks = c(seq(0,20000, 5000)),
-                         limits = c(0,20000),
-                         labels = c('0', '5','10','15','20'),
-                         guide = 'none') +
-    theme_gfw_paper +
-    theme(axis.title.x = element_blank(),
-          axis.title.y = element_blank(),
-          axis.text.x = element_blank(),
-          axis.text.y = element_blank(),
-          axis.ticks = element_blank(),
-          axis.line = element_blank(),
-          panel.grid = element_blank(),
-          panel.background = element_rect(fill = 'white'),
-          plot.margin=unit(c(0,-0.5,-0.5,-0.5), "cm"))
-
-
-npp_plot
-```
 
 #### Generating Legends
 
@@ -399,41 +325,3 @@ effort_legend_05 <- get_legend(legend_plot_05 +
                                    theme(legend.position="bottom"))
 ```
 
-Generating NPP legend
-
-``` r
-cont_fill = 'white'
-npp_legend_plot = ggplot() +
-    geom_raster(data = chloro.2, 
-                aes(lon, lat, fill = npp)) +
-    geom_polygon(data = land_df, 
-                 fill = cont_fill ) +
-    scale_fill_gradient2('Net Primary Productivity (x1000)', 
-                        low = 'white',#e7f9dc', 
-                        mid = '#f7fcf4', #e6f9da', 
-                        high = '#31a354', 
-                        midpoint = 4000, na.value="white",
-                        breaks = c(seq(0,20000, 5000)),
-                        limits = c(0,20000),
-                        labels = c('0', '5','10','15','20')) +
-    guides(fill = guide_colorbar(barwidth = 16, 
-                                 barheight = 2, 
-                                 title.position = 'bottom',
-                                 title.hjust = 0.7)) +
-    theme_gfw_paper +
-    theme(axis.title.x = element_blank(),
-          axis.title.y = element_blank(),
-          axis.text.x = element_blank(),
-          axis.text.y = element_blank(),
-          axis.ticks = element_blank(),
-          axis.line = element_blank(),
-          panel.grid = element_blank(),
-          #legend.position = c(0.7, .09),
-          legend.direction="horizontal",
-          legend.text = element_text(size = 14, family = 'Times New Roman'),
-          legend.title = element_text(size = 16, family = 'Times New Roman'),
-          plot.margin=unit(c(-0.5,0,-0.5,-0.5), 'cm'),
-          legend.position = 'bottom')
-
-npp_legend <- get_legend(npp_legend_plot + theme(legend.position="bottom"))
-```
