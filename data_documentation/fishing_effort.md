@@ -23,7 +23,7 @@ Description: Fishing effort and vessel presence is binned into grid cells 0.01 d
  - trawlers: trawlers, all types
  - fixed_gear: a category that includes set longlines, set gillnets, and pots and traps 
  - squid_jigger: squid jiggers, mostly large industrial pelagic operating vessels
- - other_fishing: a combination of vessels of unknown fishing gear and other, less common gears such as trollers or pole and line
+ - other_fishing: a combination of vessels of unknown fishing gear and other, less common gears such as trollers or pole and line 
 
 
 ## Table Schema
