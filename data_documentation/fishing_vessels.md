@@ -6,17 +6,18 @@ These data are available in the following formats:
  - BigQuery Tables
  - CSVs
 
-Links to these data are available at [Global Fishing Watch's community page](https://globalfishingwatch.force.com/gfw/s/topic/0TO36000000PXJdGAO/global-fishing-watch-data).
+Links to these data are available at [Global Fishing Watch's community page](https://globalfishingwatch.force.com/gfw/s/data_download).
 
-Data citation: Kroodsma et al. "Tracking the global footprint of fisheries." Science 361.6378 (2018):XXX-XXX.
+For additional information about these results, see the associated journal article: [D.A. Kroodsma, J. Mayorga, T. Hochberg, N.A. Miller, K. Boerder, F. Ferretti, A. Wilson, 7 B. Bergman, T.D. White, B.A. Block, P. Woods, B. Sullivan, C. Costello, and B. Worm. "Tracking the global footprint of fisheries." Science 361.6378 (2018).](http://science.sciencemag.org/cgi/doi/10.1126/science.aao1118)
 
-License:  [Creative Commons Attribution-ShareAlike 4.0 International license](https://creativecommons.org/licenses/by-sa/4.0/)
+License: [Creative Commons Attribution-ShareAlike 4.0 International license](https://creativecommons.org/licenses/by-sa/4.0/)
 
 For updates, links to example code, and more, visit:
-globalfishingwatch.io/global-footprint-of-fisheries.html
-GitHub.com/globalfishingwatch/tracking-global-footprint-of-fisheries
 
-This table includes all mmsi that are included in the fishing effort data. It includes all vessels that were identified as fishing vessels by the neural network and which were not identified as non-fishing vessels by registries and manual review. If an mmsi was matched to a fishing vessel on a registry, but the neural net did not classify it as a fishing vessel, it is not included on this list. There is only one row for each mmsi. 
+ - [Global Fishing Watch R&D Site](globalfishingwatch.io/global-footprint-of-fisheries.html)
+ - [GitHub Repo for Tracking the Global Footprint of Fisheries](GitHub.com/globalfishingwatch/tracking-global-footprint-of-fisheries)
+
+Description: This table includes all mmsi that are included in the [fishing effort data](https://github.com/GlobalFishingWatch/global-footprint-of-fisheries/blob/master/data_documentation/fishing_effort.md). It includes all vessels that were identified as fishing vessels by the neural network and which were not identified as non-fishing vessels by registries and manual review. If an mmsi was matched to a fishing vessel on a registry, but the neural net did not classify it as a fishing vessel, it is not included on this list. There is only one row for each mmsi. 
 
 ## Table Schema
  - mmsi: Maritime Mobile Service Identity, the identifier for AIS
@@ -28,7 +29,7 @@ This table includes all mmsi that are included in the fishing effort data. It in
    - fixed_gear
    - other_fishing
    - drifting_longlines
- - subgeartype: best value subgeartype.
+ - subgeartype: best value subgeartype
  - length: best value for length overall in meters
  - tonnage: best value for gross tonnage
  - engine_power: best value for main engine power, in kilowatts
