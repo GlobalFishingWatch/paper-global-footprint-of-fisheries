@@ -9,14 +9,14 @@ Fishing effort and vessel presence data is avaialbe in the following formats:
 
 Links to these data are available at [Global Fishing Watch's community page](https://globalfishingwatch.force.com/gfw/s/data_download).
 
-Data citation: Kroodsma et al. "Tracking the global footprint of fisheries." Science 361.6378 (2018):XXX-XXX.
-License:  [Creative Commons Attribution-ShareAlike 4.0 International license](https://creativecommons.org/licenses/by-sa/4.0/)
+For additional information about these results, see the associated journal article: [D.A. Kroodsma, J. Mayorga, T. Hochberg, N.A. Miller, K. Boerder, F. Ferretti, A. Wilson, 7 B. Bergman, T.D. White, B.A. Block, P. Woods, B. Sullivan, C. Costello, and B. Worm. "Tracking the global footprint of fisheries." Science 361.6378 (2018).](http://science.sciencemag.org/cgi/doi/10.1126/science.aao1118)
 
 For updates, links to example code, and more, visit:
-globalfishingwatch.io/global-footprint-of-fisheries.html
-GitHub.com/globalfishingwatch/tracking-global-footprint-of-fisheries
 
-Data is based on fishing detections of >70,000 unique AIS devices on fishing vessels. Fishing vessels are identified via a neural network classifier and vessel registry databases. The neural net classifies fishing vessels into six categories:
+ - [Global Fishing Watch R&D Site](globalfishingwatch.io/global-footprint-of-fisheries.html)
+ - [GitHub Repo for Tracking the Global Footprint of Fisheries](GitHub.com/globalfishingwatch/tracking-global-footprint-of-fisheries)
+
+Description: Fishing effort and vessel presence is binned into grid cells 0.01 degrees on a side, and measured in units of hours. The time is calculated by assigning an amount of time to each AIS detection (which is half the time to the previous plus half the time to the next AIS position), and then summing all positions in each grid cell. Data is based on fishing detections of >70,000 unique AIS devices on fishing vessels. Fishing vessels are identified via a neural network classifier and vessel registry databases. The neural net classifies fishing vessels into six categories:
 
  - drifting_longlines: drifting longlines
  - purse_seines: purse seines, both pelagic and demersal
@@ -24,9 +24,6 @@ Data is based on fishing detections of >70,000 unique AIS devices on fishing ves
  - fixed_gear: a category that includes set longlines, set gillnets, and pots and traps 
  - squid_jigger: squid jiggers, mostly large industrial pelagic operating vessels
  - other_fishing: a combination of vessels of unknown fishing gear and other, less common gears such as trollers or pole and line
-
- 
-Fishing effort and vessel presence is binned into grid cells 0.01 degrees on a side, and measured in units of hours. The time is calculated by assigning an amount of time to each AIS detection (which is half the time to the previous plus half the time to the next AIS position), and then summing all positions in each grid cell.  
 
 
 ## Table Schema
