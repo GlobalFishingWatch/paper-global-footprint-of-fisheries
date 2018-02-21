@@ -1,6 +1,6 @@
 # Vessel
 
-## Results of Nerual Net Classifier and MMSI Matched to Registries
+## Results of Neural Net Classifier and MMSI Matched to Registries
 
 These data are available in the following formats:
  - BigQuery Tables
