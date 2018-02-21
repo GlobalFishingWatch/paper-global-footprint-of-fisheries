@@ -1,4 +1,4 @@
-# Vessel
+# Vessels
 
 ## Results of Neural Net Classifier and MMSI Matched to Registries
 
@@ -8,16 +8,15 @@ These data are available in the following formats:
 
 Links to these data are available at [Global Fishing Watch's community page](https://globalfishingwatch.force.com/gfw/s/data_download).
 
-Data citation: Kroodsma et al. "Tracking the global footprint of fisheries." Science 361.6378 (2018).
-License:  [Creative Commons Attribution-ShareAlike 4.0 International license](https://creativecommons.org/licenses/by-sa/4.0/)
+For additional information about these results, see the associated journal article: [D.A. Kroodsma, J. Mayorga, T. Hochberg, N.A. Miller, K. Boerder, F. Ferretti, A. Wilson, 7 B. Bergman, T.D. White, B.A. Block, P. Woods,B. Sullivan, C. Costello, and B. Worm.. "Tracking the global footprint of fisheries." Science 361.6378 (2018).](http://science.sciencemag.org/cgi/doi/10.1126/science.aao1118)
+
+License: [Creative Commons Attribution-ShareAlike 4.0 International license](https://creativecommons.org/licenses/by-sa/4.0/)
 
 For updates, links to example code, and more, visit:
 (globalfishingwatch.io/global-footprint-of-fisheries.html)[globalfishingwatch.io/global-footprint-of-fisheries.html] and 
 [GitHub.com/globalfishingwatch/global-footprint-of-fisheries.html](GitHub.com/globalfishingwatch/global-footprint-of-fisheries.html)
 
-This table includes all mmsi that were matched to a vessel regsitry, which were identified through manual review or web searchers, or which were classified by the neural network. MMSI that are not included did not have enough activity during our time period (2012 to 2016) to be classified by our neural network (had to have at least 500 positions over a six month period).
-
-If an mmsi matched to multiple vessels, that mmsi is repeated in this table.  
+Description: This table includes all mmsi that were matched to a vessel regsitry, which were identified through manual review or web searchers, or which were classified by the neural network. MMSI that are not included did not have enough activity during our time period (2012 to 2016) to be classified by our neural network (had to have at least 500 positions over a six month period). If an mmsi matched to multiple vessels, that mmsi may be repeated in this table.  
 
 
 ## Table Schema
