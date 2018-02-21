@@ -17,8 +17,7 @@ For updates, links to example code, and more, visit:
  - [Global Fishing Watch R&D Site](globalfishingwatch.io/global-footprint-of-fisheries.html)
  - [GitHub Repo for Tracking the Global Footprint of Fisheries](GitHub.com/globalfishingwatch/tracking-global-footprint-of-fisheries)
  
-Description: This table includes all mmsi that were matched to a vessel regsitry, which were identified through manual review or web searchers, or which were classified by the neural network. MMSI that are not included did not have enough activity during our time period (2012 to 2016) to be classified by our neural network (had to have at least 500 positions over a six month period). If an mmsi matched to multiple vessels, that mmsi may be repeated in this table.  
-
+Description: This table includes all mmsi that were matched to a vessel regsitry, were identified through manual review or web searchers, or were classified by the neural network. MMSI that are not included did not have enough activity during our time period (2012 to 2016) to be classified by the neural network (vessels had to have at least 500 positions over a six month period). If an mmsi matched to multiple vessels, that mmsi may be repeated in this table.  
 
 ## Table Schema
  - mmsi: Maritime Mobile Service Identity, the identifier for AIS
