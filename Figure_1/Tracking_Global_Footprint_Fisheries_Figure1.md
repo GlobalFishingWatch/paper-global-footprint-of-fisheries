@@ -6,6 +6,10 @@ Code for making Figure 1 from Tracking the Footprint of Global Fisheries paper f
 ##### Figure prep
 
 ``` r
+library(ggplot2)
+library(sf)
+library(bigrquery)
+
 theme_gfw_paper <-  theme(text = element_text(family="Arial", face="bold", size=12),
         axis.text.x = element_text(size = 12, colour = "black"),
         axis.text.y = element_text(size = 12, colour = "black"),

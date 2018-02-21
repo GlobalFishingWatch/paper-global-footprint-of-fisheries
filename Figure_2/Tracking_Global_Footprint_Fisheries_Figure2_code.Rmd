@@ -12,11 +12,10 @@ This code replicates Figure 2, Panel A from the paper Tracking the Global Footpr
 Fisheries using the publicly available Big Query tables provided by Global Fishing Watch.
 
 ```{r echo = FALSE, message=FALSE, comment=FALSE, warning=FALSE}
-library(tidyverse)
-library(viridis)
+library(ggplot2)
 library(bigrquery)
-library(rgdal)
-library(rgeos)
+library(dplyr)
+
 BQ_connection <-  dbConnect(dbi_driver(), dataset = "", project = "world-fishing-827")
 ```
 
