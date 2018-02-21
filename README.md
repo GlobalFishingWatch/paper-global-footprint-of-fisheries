@@ -8,4 +8,4 @@ To see blog postings about the paper and the related dataset, visit [Global Fish
 
 This site currently contains only a subset of the analyses from the paper. We will be adding to this repo over the next months. To get updates, join the [Global Fishing Watch Research Acceleartor Program](https://globalfishingwatch.force.com/gfw/s/).
 
-![global fishing](images/3.Global Fishing Activity-dark.jpg)
+![global fishing](images/3.GlobalFishingActivity-dark.jpg)
