@@ -31,8 +31,8 @@ Fishing effort and vessel presence is binned into grid cells 0.01 degrees on a s
 
 ## Table Schema
  - date: a string in format “YYYY-MM-DD” 
- - lat_bin: the southern edge of the grid cell, in 10ths of a degree -- 101 is the grid cell with a southern edge at 10.1 degrees north
- - lon_bin: the western edge of the grid cell, in 10ths of a degree -- 101 is the grid cell with a western edge at 10.1 degrees east
+ - lat_bin: the southern edge of the grid cell, in 100ths of a degree -- 101 is the grid cell with a southern edge at 1.01 degrees north
+ - lon_bin: the western edge of the grid cell, in 100ths of a degree -- 101 is the grid cell with a western edge at 1.01 degrees east
  - flag: the flag state of the fishing effort, in iso3 value
  - geartype: see our description of geartpyes
  - vessel_hours: hours that vessels of this geartype and flag were present in this gridcell on this day
