@@ -29,7 +29,6 @@ Description: This table includes all mmsi that are included in the [fishing effo
    - fixed_gear
    - other_fishing
    - drifting_longlines
- - subgeartype: best value subgeartype
  - length: best value for length overall in meters
  - tonnage: best value for gross tonnage
  - engine_power: best value for main engine power, in kilowatts
