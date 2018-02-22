@@ -8,11 +8,8 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, comment = FALSE, warning = F
 ```
 
 ```{r echo = FALSE, message=FALSE, comment=FALSE}
-library(tidyverse)
-library(viridis)
+library(ggplot2)
 library(bigrquery)
-library(rgdal)
-library(rgeos)
 library(sf)
 BQ_connection <-  dbConnect(dbi_driver(), dataset = "", project = "world-fishing-827")
 ```
@@ -180,7 +177,7 @@ total_effort_05 <- ggplot() +
                  color = cont_color,
                  size = 0.5,
                  fill = cont_fill) +
-    scale_fill_viridis("Vessel Density", na.value = NA, limits = c(1, 5), 
+    scale_fill_viridis_c("Vessel Density", na.value = NA, limits = c(1, 5), 
                        breaks=c(seq(1,5,length.out = 4)),
                        labels = c('1','10', '100','> 1000' ), 
                        direction = -1)+
@@ -212,7 +209,7 @@ purse_seine_05 <- ggplot() +
                  color = cont_color,
                  size = 0.5,
                  fill = cont_fill) +
-   scale_fill_viridis("Vessel Density", na.value = NA, limits = c(1, 5), 
+   scale_fill_viridis_c("Vessel Density", na.value = NA, limits = c(1, 5), 
                        breaks=c(seq(1,5,length.out = 4)),
                        labels = c('1','10', '100','> 1000' ), 
                        direction = -1) +
@@ -243,7 +240,7 @@ longline_05 <- ggplot() +
                  color = cont_color,
                  size = 0.5,
                  fill = cont_fill) +
-    scale_fill_viridis("Vessel Density", na.value = NA, limits = c(1, 5), 
+    scale_fill_viridis_c("Vessel Density", na.value = NA, limits = c(1, 5), 
                        breaks=c(seq(1,5,length.out = 4)),
                        labels = c('1','10', '100','> 1000' ), 
                        direction = -1) +
@@ -272,7 +269,7 @@ trawling_05 <- ggplot() +
                  color = cont_color,
                  size = 0.5,
                  fill = cont_fill) +
-    scale_fill_viridis("Vessel Density", na.value = NA, limits = c(1, 5), 
+    scale_fill_viridis_c("Vessel Density", na.value = NA, limits = c(1, 5), 
                        breaks=c(seq(1,5,length.out = 4)),
                        labels = c('1','10', '100','> 1000' ), 
                        direction = -1) +
@@ -308,7 +305,7 @@ legend_plot_05 = ggplot() +
                 interpolate = FALSE) +
     geom_polygon(data = land_df,
                  fill = cont_fill) +
-    scale_fill_viridis("Vessel Density", 
+    scale_fill_viridis_c("Vessel Density", 
                        na.value = NA, 
                        limits = c(1, 5),
                        breaks=c(seq(1,5,length.out = 5)),

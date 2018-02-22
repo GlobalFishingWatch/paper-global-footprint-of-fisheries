@@ -6,6 +6,10 @@ This code replicates Figure 2, Panel A from the paper Tracking the Global Footpr
 #### Figure Prep
 
 ``` r
+library(ggplot2)
+library(bigrquery)
+library(dplyr)
+
 theme_gfw_paper <-  theme(text = element_text(family="Arial", face="bold", size=10),
         axis.text.x = element_text(size = 12, colour = "black"),
         axis.text.y = element_text(size = 12, colour = "black"),
