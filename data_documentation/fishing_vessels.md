@@ -8,7 +8,7 @@ These data are available in the following formats:
 
 Links to these data are available at [Global Fishing Watch's community page](https://globalfishingwatch.force.com/gfw/s/data_download).
 
-For additional information about these results, see the associated journal article: [D.A. Kroodsma, J. Mayorga, T. Hochberg, N.A. Miller, K. Boerder, F. Ferretti, A. Wilson, 7 B. Bergman, T.D. White, B.A. Block, P. Woods, B. Sullivan, C. Costello, and B. Worm. "Tracking the global footprint of fisheries." Science 361.6378 (2018).](http://science.sciencemag.org/cgi/doi/10.1126/science.aao1118)
+For additional information about these results, see the associated journal article: [D.A. Kroodsma, J. Mayorga, T. Hochberg, N.A. Miller, K. Boerder, F. Ferretti, A. Wilson, B. Bergman, T.D. White, B.A. Block, P. Woods, B. Sullivan, C. Costello, and B. Worm. "Tracking the global footprint of fisheries." Science 361.6378 (2018).](http://science.sciencemag.org/content/359/6378/904)
 
 License: [Creative Commons Attribution-ShareAlike 4.0 International license](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -29,7 +29,6 @@ Description: This table includes all mmsi that are included in the [fishing effo
    - fixed_gear
    - other_fishing
    - drifting_longlines
- - subgeartype: best value subgeartype
  - length: best value for length overall in meters
  - tonnage: best value for gross tonnage
  - engine_power: best value for main engine power, in kilowatts
