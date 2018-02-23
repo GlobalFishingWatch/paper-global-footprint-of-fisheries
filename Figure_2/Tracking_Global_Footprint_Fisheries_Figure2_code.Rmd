@@ -8,19 +8,25 @@ output: github_document
 knitr::opts_chunk$set(echo = TRUE, comment = FALSE, warning = FALSE, message = FALSE)
 ```
 
-This code replicates Figure 2, Panel A from the paper Tracking the Global Footprint of
+This code replicates Figure 2, Panels A and B from the paper Tracking the Global Footprint of
 Fisheries using the publicly available Big Query tables provided by Global Fishing Watch.
 
-```{r echo = FALSE, message=FALSE, comment=FALSE, warning=FALSE}
-library(ggplot2)
+```{r, message=FALSE, comment=FALSE, warning=FALSE}
+library(tidyverse)
+library(sf)
 library(bigrquery)
-library(dplyr)
+library(lubridate)
+library(fuzzyjoin)
+```
 
+
+```{r echo = FALSE, message=FALSE, comment=FALSE, warning=FALSE}
 BQ_connection <-  dbConnect(dbi_driver(), dataset = "", project = "world-fishing-827")
 ```
 
+
 #### Figure Prep
-```{r}
+```{r,  message=FALSE, comment=FALSE, warning=FALSE}
 theme_gfw_paper <-  theme(text = element_text(family="Arial", face="bold", size=10),
         axis.text.x = element_text(size = 12, colour = "black"),
         axis.text.y = element_text(size = 12, colour = "black"),
@@ -38,7 +44,7 @@ theme_gfw_paper <-  theme(text = element_text(family="Arial", face="bold", size=
 ```
 
 
-### Global Patterns Panel
+### Panel A: Global Patterns Panel
 
 Query to generate the total fishing hours group by latitude, day and year. The original
 plot provided finer resolution of grouping by 12 hours (0.5 day), but a similar 
@@ -176,5 +182,199 @@ global_patterns_legend <- ggplot2::ggplot() +
 
 global_legend <- get_legend(global_patterns_legend)
 ```
+
+
+
+### Panel B: Fishing Hours Chinese Vessels
+
+The following code is not identical to that used to generate the original Panel B,
+of Figure 2, but demonstrates how, with a bit of wrangling, a similar figure can 
+be generated using publically available data.
+
+#### Query Date
+Query to identify fishing hours by Chinese vessels, grouped by date and year, 
+NEAR the Chinese EEZ. This will be restricted to just be that fishing which takes
+place within the Chinese EEZ later.
+```{sql connection = BQ_connection, output.var = "chinese_active_vessels_all_years"}
+SELECT
+  YEAR(date) year,
+  date,
+  FLOOR((lat_bin/100)*10) / 10 AS lat_bin,
+  FLOOR((lon_bin/100)*10) / 10 AS lon_bin, 
+  SUM(fishing_hours) fishing_hours
+FROM
+[global-fishing-watch:global_footprint_of_fisheries.fishing_effort] 
+  WHERE
+    _PARTITIONTIME >= "2013-01-01 00:00:00"
+    AND _PARTITIONTIME < "2017-01-01 00:00:00"
+  AND flag == "CHN"
+  AND lat_bin/100 < 47
+  AND lon_bin/100 > 101
+  AND lat_bin/100 > 12
+  AND lon_bin/100 < 136
+  AND fishing_hours > 0
+GROUP BY
+  date,
+  lat_bin,
+  lon_bin, 
+  year
+```
+  
+#### Identify Fishing Hours within Chinese EEZ
+```{r}
+#read in EEZ shapefile available from Marine Regions http://www.marineregions.org/downloads.php
+eez_sp <- sf::read_sf('~/Documents/GlobalFishingWatch/shapefiles/World_EEZ_v8_20140228_LR/World_EEZ_v8_2014.shp')
+
+#reduce the shapefile to just the Chinese EEZ
+eez_chn_sp <- eez_sp %>%
+    filter(ISO_3digit == 'CHN')
+
+#convert dataframe of gridded values to sf class
+chn_sf = sf::st_as_sf(chinese_active_vessels_all_years, 
+                      coords = c('lon_bin', 'lat_bin'), crs = 4326, agr = "constant")
+
+#spatial left join, functions as a point in polygon to identify those fishing hours
+#that take place within the Chinese EEZ.
+event_in_shp <- sf::st_join(chn_sf, eez_sp, join = sf::st_intersects, left = TRUE)
+chinese_active_vessels_inside_eez <- event_in_shp %>%
+    dplyr::filter(!is.na(ISO_3digit)) %>%
+    dplyr::select(year, date, fishing_hours)
+chinese_active_vessels_inside_eez <- as.data.frame(chinese_active_vessels_inside_eez)
+    
+```
+
+  
+### Further Processing for Chinese Moratoria and New Year
+```{r}
+chinese_active_vessels_inside_eez <- chinese_active_vessels_inside_eez %>% 
+  mutate(date = lubridate::ymd(date)) %>% 
+  group_by(year, date) %>% 
+  summarise(fishing_hours = sum(fishing_hours)) %>% 
+  ungroup() %>% 
+  dplyr::select(-year)
+
+
+moratoria_dates1 <- tibble(year = c(2013:2016)) %>% 
+  mutate(start_date = lubridate::ymd(paste(year,"-06-01",sep = "")),
+         end_date = lubridate::ymd(paste(year,"-08-01",sep = "")))
+moratoria_dates2 <- tibble(year = c(2013:2016)) %>% 
+  mutate(start_date = lubridate::ymd(paste(year,"-05-16",sep = "")),
+         end_date = lubridate::ymd(paste(year,"-09-16",sep = "")))
+
+new_year_dates <- tibble(year = c(2013:2016),
+                         start_date = c(lubridate::ymd("2013-02-07"),
+                                        lubridate::ymd("2014-01-28"),
+                                        lubridate::ymd("2015-02-16"),
+                                        lubridate::ymd("2016-02-05")),
+                         end_date = c(lubridate::ymd("2013-02-07") + days(23),
+                                        lubridate::ymd("2014-01-28") + days(23),
+                                        lubridate::ymd("2015-02-16") + days(23),
+                                        lubridate::ymd("2016-02-05") + days(23)))
+
+chinese_active_vessels_inside_eez <- chinese_active_vessels_inside_eez %>% 
+  fuzzyjoin::fuzzy_left_join(new_year_dates, 
+                             by = c("date" = "start_date", "date" = "end_date"), 
+                             match_fun = list(`>=`, `<=`)) %>% 
+  mutate(new_year = ifelse(!is.na(year), TRUE, FALSE)) %>% 
+  dplyr::select(-start_date, -end_date,  -year ) %>% 
+  distinct() %>% 
+  fuzzyjoin::fuzzy_left_join(moratoria_dates1, 
+                by = c("date" = "start_date", "date" = "end_date"), 
+                match_fun = list(`>=`, `<=`)) %>% 
+  mutate(moratoria1 = ifelse(!is.na(year), TRUE, FALSE)) %>% 
+  dplyr::select(-start_date, -end_date,  -year ) %>% 
+  distinct() %>% 
+  fuzzyjoin::fuzzy_left_join(moratoria_dates2, 
+                by = c("date" = "start_date", "date" = "end_date"), 
+                match_fun = list(`>=`, `<=`)) %>% 
+  mutate(moratoria2 = ifelse(!is.na(year), TRUE, FALSE)) %>% 
+  dplyr::select(-start_date, -end_date,  -year ) %>% 
+  distinct() 
+
+new_year_rows <- which(chinese_active_vessels_inside_eez$new_year == T)
+
+new_year_counterfactual_rows <- unique(sort(new_year_rows + rep(-5:5, each = length(new_year_rows)))) 
+
+new_year_counterfactual_rows <- new_year_counterfactual_rows[!new_year_counterfactual_rows %in% new_year_rows]
+
+chinese_active_vessels_inside_eez <- chinese_active_vessels_inside_eez %>% 
+  mutate(new_year_counterfactual = ifelse(row_number() %in% new_year_counterfactual_rows, T, F))
+
+theme_gfw_paper <-  theme(text = element_text(family="Arial", face="bold", size=14),
+        axis.text.x = element_text(size = 12, colour = "black"),
+        axis.text.y = element_text(size = 12, colour = "black"),
+        axis.line.x = element_line(colour = "black", size = .5),
+        axis.line.y = element_line(colour = "black", size = .5),
+        legend.position = "right",
+        axis.title.y = element_text(margin=margin(0,15,0,0)),
+        axis.title.x = element_text(margin=margin(15,0,0,0)),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(), 
+        axis.line = element_line(colour = "black")
+        )
+```
+
+
+#### Making Panel B
+```{r, fig.height=3.5, fig.width=8}
+chinese_moratoria_plot_fishing_hours <- ggplot() +
+  geom_rect(data = moratoria_dates1, 
+            aes(xmin = start_date, 
+                xmax = end_date,
+                ymin = 0,
+                ymax = Inf,
+                fill = "tomato"),
+            alpha = 0.5, 
+            show.legend = TRUE) +
+    geom_rect(data = moratoria_dates2, 
+            aes(xmin = start_date, 
+                xmax = end_date,
+                ymin = 0,
+                ymax = Inf,
+                fill = "tomato"),
+            alpha = 0.15, 
+            show.legend = TRUE) +
+  geom_rect(data = new_year_dates, 
+            aes(xmin = start_date, 
+                xmax = end_date,
+                ymin = 0,
+                ymax = Inf,
+                fill = "#f7e456"),
+            alpha = 1,
+            show.legend = TRUE) +
+  geom_line(data = chinese_active_vessels_inside_eez,
+           aes(x = date, y = fishing_hours/1000), 
+           size = 0.3) +
+  theme_minimal() +
+  scale_x_date(date_breaks = "1 year", 
+               date_labels = "%Y ", 
+               limits = c(as.Date("2013-01-01"), as.Date('2017-01-01')),
+               expand = c(0,0)) +
+  xlab("") +
+  scale_y_continuous(breaks = c(0,20,40,60),
+                     expand = c(0, 0), 
+                     labels = scales::comma, 
+                     limits = c(0,60) ) +
+  ylab("Fishing Hours (x1000)")+
+  scale_fill_manual(values = c("#f7d694", "tomato"),
+                    name = " ",
+                    labels = c("Chinese New Year", "Moratoria")) +
+  theme_gfw_paper +
+     theme(axis.ticks = element_line(size = 0.5),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(), 
+        axis.line = element_line(colour = "black"),
+        axis.text.y = element_text(size = 10),
+
+        legend.justification = "top",
+        legend.position = 'none',
+        legend.text = element_text(size = 6),
+        plot.margin = unit(margin(1,1,1,1),'cm')
+        )
+chinese_moratoria_plot_fishing_hours
+```
+
 
 
