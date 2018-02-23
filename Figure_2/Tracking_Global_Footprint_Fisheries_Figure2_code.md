@@ -216,7 +216,7 @@ GROUP BY
 
 ``` r
 #read in EEZ shapefile available from Marine Regions http://www.marineregions.org/downloads.php
-eez_sp <- sf::read_sf('~/Documents/GlobalFishingWatch/shapefiles/World_EEZ_v8_20140228_LR/World_EEZ_v8_2014.shp')
+eez_sp <- sf::read_sf('~/shapefiles/World_EEZ_v10.shp')
 
 #reduce the shapefile to just the Chinese EEZ
 eez_chn_sp <- eez_sp %>%
