@@ -179,9 +179,9 @@ global_patterns_legend <- ggplot2::ggplot() +
 global_legend <- get_legend(global_patterns_legend)
 ```
 
-### Panel B: Fishing Hours Chinese Vessels
+### Panel C: Fishing Hours Chinese Vessels
 
-The following code is not identical to that used to generate the original Panel B, of Figure 2, but demonstrates how, with a bit of wrangling, a similar figure can be generated using publically available data.
+The following code is not identical to that used to generate the original Panel C, of Figure 2, but demonstrates how, with a bit of wrangling, a similar figure can be generated using publically available data.
 
 #### Query Date
 
@@ -307,7 +307,7 @@ theme_gfw_paper <-  theme(text = element_text(family="Arial", face="bold", size=
         )
 ```
 
-#### Making Panel B
+#### Making Panel C
 
 ``` r
 chinese_moratoria_plot_fishing_hours <- ggplot() +
