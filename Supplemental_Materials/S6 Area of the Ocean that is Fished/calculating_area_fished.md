@@ -1,6 +1,8 @@
 Area of the Ocean that is Fished
 ================
 
+Load packages
+
 ``` r
 library(bigrquery)
 library(dplyr)
@@ -11,6 +13,8 @@ library(sf)
 library(rgeos)
 library(ggplot2)
 ```
+
+Query to get the fishing effort at 0.5 degree resolution from the GFW public Big Query table. [Fishing Effort](https://bigquery.cloud.google.com/table/global-fishing-watch:global_footprint_of_fisheries.fishing_effort?pli=1)
 
 ``` sql
 SELECT
@@ -55,17 +59,17 @@ Convert fishing effort dataframe into a spatial dataframe (specify lon and lat a
 coordinates(gridded_fishing)=~lon+lat
 ```
 
-Assign a projection to the gridded fishing effort
+Specify `EPSG:4326` as initial projection for the gridded fishing effort.
 
 ``` r
-# set it to lat-long
+# set it to EPSG:4326
 proj4string(gridded_fishing)=CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") 
 
 #ensure fishing in on regular grid
 gridded(gridded_fishing) = TRUE
 ```
 
-Generate the fishing effort raster. Specify original projection and extent, then project the raster into Gall-Peters equal area
+Generate the fishing effort raster. Specify original projection and extent, then project the raster into Gall-Peters equal area projection
 
 ``` r
 fishing_raster_05 = rasterFromXYZ(gridded_fishing, crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
@@ -81,20 +85,20 @@ Export raster
 writeRaster(fishing_raster_05, '~/Documents/GlobalFishingWatch/Global_raster_paper/oceans_equal_area/fishing_raster_05_20180228.tif', format = 'GTiff', overwrite = TRUE)
 ```
 
-Either read in fishing raster of continue from above. Load an oceans shapefile
+Load a 10m Oceans shapefile from Natural Earth <http://www.naturalearthdata.com/downloads/10m-physical-vectors/>:
+This file has had polygons dissolved into single ocean polygon and has been projected into Gall-Peters Equal area projections already.
 
 ``` r
-#fishing_raster_05 <- raster('~/Documents/GlobalFishingWatch/Projects/Global_raster_paper/oceans_equal_area/fishing_raster_05.tif')
 ocean_cea_sf <- read_sf('~/Documents/GlobalFishingWatch/shapefiles/oceans_CEA_equal_area/oceans_cea.shp')
 ```
 
-Reproject the oceans shapefile using a Gall-Peters Equal Area Projection to ensure equal area at all latitudes.
+For completeness and to ensure the appropriate projection, here we reproject the oceans shapefile using a Gall-Peters Equal Area Projection to ensure equal area at all latitudes.
 
 ``` r
 ocean_cea_sf <- st_transform(ocean_cea_sf, crs = "+proj=cea +lon_0=0 +lat_ts=45 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs")
 ```
 
-Check the vector file and projection look appropriate
+Check the vector file to ensure projection look appropriate
 
 ``` r
 head(ocean_cea_sf)
@@ -123,7 +127,7 @@ ggplot() +
 
 ![](calculating_area_fished_files/figure-markdown_github/unnamed-chunk-12-1.png)
 
-For simplicity areas of fishing a value of 1 and those without NA.
+For simplicity assign areas of fishing a value of 1 and those without NA.
 
 ``` r
 fishing_raster_05[fishing_raster_05[] > 0] <- 1 
@@ -138,7 +142,7 @@ plot(fishing_raster_05)
 
 ![](calculating_area_fished_files/figure-markdown_github/unnamed-chunk-14-1.png)
 
-Convert the raster to a vector which makes it possible to compare with the oceans vector.
+Convert the raster to a vector file which makes it possible to compare with the oceans vector.
 
 ``` r
 #raster to polygon using maximum number of vertices (n = 16)
@@ -149,7 +153,7 @@ fishing_polygon_sf <- st_as_sf(fishing_polygon)
 fishing_polygon_sf <- st_transform(fishing_polygon_sf, crs = "+proj=cea +lon_0=0 +lat_ts=45 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs")
 ```
 
-Identify where the fishing and ocean vector files intersect. Ensures we clip the fishing raster to the ocean.
+Identify where the fishing and ocean vector files intersect. Ensures that for grid cells that overlap the coastline we only include the area that is within the ocean. In some sense, this provides a smaller grid along the coastline.
 
 ``` r
 fishing_ocean_intersect <- sf::st_intersection(x = ocean_cea_sf, fishing_polygon_sf)
@@ -163,30 +167,32 @@ ocean_area <- st_area(ocean_cea_sf)
 (fishing_area/ocean_area) * 100
 ```
 
-    Percent of ocean fished: 50.55793 
+    FALSE 50.55793 1
 
 ``` r
 library(ggplot2)
 ggplot() +
-    geom_sf(data = fishing_polygon_sf, fill = 'dodgerblue')
+    geom_sf(data = fishing_ocean_intersect, fill = 'dodgerblue')
 ```
 
 ![](calculating_area_fished_files/figure-markdown_github/unnamed-chunk-18-1.png)
 
 #### Same analysis using previous fishing raster
 
+Here we illustrate the same calculation using a fishing raster that was generated using an earlier version of the fishing effort dataset. This dataset may have overemphasized squid-jigger fishing.
+
 ``` r
 fishing_raster_05_old <- raster('~/Documents/GlobalFishingWatch/Projects/Global_raster_paper/oceans_equal_area/fishing_raster_05.tif')
 ```
 
-For simplicity areas of fishing a value of 1 and those without NA.
+Analysis same as before: Convert grid cells with fishing to 1's and grid cells without fishing to NA.
 
 ``` r
 fishing_raster_05_old[fishing_raster_05_old[] > 0] <- 1 
 fishing_raster_05_old[fishing_raster_05_old[] <= 0] <- NA 
 ```
 
-A quick visual check to see if the raster looks appropriate (though it will not yet have the appropriate projection)
+A quick visual check to see if the raster looks appropriate (though it will not yet have the appropriate projection).
 
 ``` r
 plot(fishing_raster_05_old)
@@ -194,7 +200,7 @@ plot(fishing_raster_05_old)
 
 ![](calculating_area_fished_files/figure-markdown_github/unnamed-chunk-21-1.png)
 
-Convert the raster to a vector which makes it possible to compare with the oceans vector.
+Convert the raster to a vector, which makes it possible to compare with the oceans vector.
 
 ``` r
 #raster to polygon using maximum number of vertices (n = 16)
@@ -219,4 +225,6 @@ ocean_area <- st_area(ocean_cea_sf)
 (fishing_area_old/ocean_area) * 100
 ```
 
-    Percent of ocean fished: 54.4856 
+    FALSE 54.4856 1
+
+Note that this value is ~55%

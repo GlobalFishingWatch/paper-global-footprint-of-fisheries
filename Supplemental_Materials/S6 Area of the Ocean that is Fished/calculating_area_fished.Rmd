@@ -8,7 +8,7 @@ output: github_document
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, comment = FALSE, message = FALSE)
 ```
 
-
+Load packages
 ```{r}
 library(bigrquery)
 library(dplyr)
@@ -19,13 +19,15 @@ library(sf)
 library(rgeos)
 library(ggplot2)
 ```
+
 ```{r, echo=FALSE}
 BQ_connection <-  dbConnect(dbi_driver(), dataset = "", project = "world-fishing-827")
 
 ```
 
 
-
+Query to get the fishing effort at 0.5 degree resolution from the GFW public Big Query
+table. [Fishing Effort](https://bigquery.cloud.google.com/table/global-fishing-watch:global_footprint_of_fisheries.fishing_effort?pli=1)
 ```{sql connection = BQ_connection, output.var = "total_fishing_effort_05"}
 SELECT
   SUM(fishing_hours)/(COS(RADIANS(lat_bin/2)) * POW(111, 2)) hours_sq_km,
@@ -37,8 +39,7 @@ FROM (
     FLOOR((lon_bin/100)/0.5) * 0.5  lon_bin,
     fishing_hours
   FROM
-   // [global-fishing-watch:global_footprint_of_fisheries.fishing_effort]
-   [world-fishing-827:gfw_draft_data.fishing_effort]
+    [global-fishing-watch:global_footprint_of_fisheries.fishing_effort]
   WHERE
     _PARTITIONTIME >= "2016-01-01 00:00:00"
     AND _PARTITIONTIME < "2017-01-01 00:00:00"
@@ -65,13 +66,12 @@ gridded_fishing$hours = ifelse(is.na(gridded_fishing$hours), 0, gridded_fishing$
 
 Convert fishing effort dataframe into a spatial dataframe (specify lon and lat as x, y)
 ```{r}
-
 coordinates(gridded_fishing)=~lon+lat
 ```
 
-Assign a projection to the gridded fishing effort
+Specify `EPSG:4326` as initial projection for the gridded fishing effort. 
 ```{r}
-# set it to lat-long
+# set it to EPSG:4326
 proj4string(gridded_fishing)=CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") 
 
 #ensure fishing in on regular grid
@@ -80,7 +80,7 @@ gridded(gridded_fishing) = TRUE
 
 
 Generate the fishing effort raster. Specify original projection and extent, 
-then project the raster into Gall-Peters equal area
+then project the raster into Gall-Peters equal area projection
 ```{r}
 fishing_raster_05 = rasterFromXYZ(gridded_fishing, crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
 bb = extent(-180.25, 179.75, -88.25, 81.75)
@@ -91,31 +91,30 @@ fishing_raster_05 = projectRaster(fishing_raster_05, crs = "+proj=cea +lon_0=0 +
 
 Export raster 
 ```{r, eval=FALSE}
-# writeRaster(fishing_raster_05, '~/Documents/GlobalFishingWatch/Global_raster_paper/oceans_equal_area/fishing_raster_05_20180228.tif', format = 'GTiff', overwrite = TRUE)
-writeRaster(fishing_raster_05, '../../data/fishing_raster_05_20180228.tif', format = 'GTiff', overwrite = TRUE)
+writeRaster(fishing_raster_05, '~/Documents/GlobalFishingWatch/Global_raster_paper/oceans_equal_area/fishing_raster_05_20180228.tif', format = 'GTiff', overwrite = TRUE)
 ```
 
 
-Either read in fishing raster of continue from above.
-Load an oceans shapefile 
+Load a 10m Oceans shapefile from Natural Earth http://www.naturalearthdata.com/downloads/10m-physical-vectors/:  
+This file has had polygons dissolved into single ocean polygon and has been projected into Gall-Peters Equal area projections already. 
 ```{r}
-#fishing_raster_05 <- raster('~/Documents/GlobalFishingWatch/Projects/Global_raster_paper/oceans_equal_area/fishing_raster_05.tif')
-ocean_cea_sf <- read_sf('../../data/oceans_cea/oceans_cea.shp')
+ocean_cea_sf <- read_sf('~/Documents/GlobalFishingWatch/shapefiles/oceans_CEA_equal_area/oceans_cea.shp')
 ```
 
-Reproject the oceans shapefile using a Gall-Peters Equal Area Projection to ensure equal area at all latitudes.
+For completeness and to ensure the appropriate projection, here we reproject the oceans 
+shapefile using a Gall-Peters Equal Area Projection to ensure equal area at all latitudes.
 ```{r}
 ocean_cea_sf <- st_transform(ocean_cea_sf, crs = "+proj=cea +lon_0=0 +lat_ts=45 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs")
 ```
 
-Check the vector file and projection look appropriate
+Check the vector file to ensure projection look appropriate
 ```{r}
 head(ocean_cea_sf)
 ggplot() +
     geom_sf(data = ocean_cea_sf, fill = 'dodgerblue')
 ```
 
-For simplicity areas of fishing a value of 1 and those without NA.
+For simplicity assign areas of fishing a value of 1 and those without NA.
 ```{r}
 fishing_raster_05[fishing_raster_05[] > 0] <- 1 
 fishing_raster_05[fishing_raster_05[] <= 0] <- NA 
@@ -126,9 +125,8 @@ A quick visual check to see if the raster looks appropriate (though it will not 
 plot(fishing_raster_05)
 ```
 
-Convert the raster to a vector which makes it possible to compare with the oceans vector.
-
-```{r, cache=TRUE}
+Convert the raster to a vector file which makes it possible to compare with the oceans vector.
+```{r}
 #raster to polygon using maximum number of vertices (n = 16)
 fishing_polygon <- rasterToPolygons(fishing_raster_05, dissolve = TRUE, n = 16)
 #convert Spatial dataframe to Simple features
@@ -138,9 +136,10 @@ fishing_polygon_sf <- st_transform(fishing_polygon_sf, crs = "+proj=cea +lon_0=0
 ```
 
 
-Identify where the fishing and ocean vector files intersect. Ensures we clip the
-fishing raster to the ocean.
-```{r, cache=TRUE}
+Identify where the fishing and ocean vector files intersect. Ensures that for grid cells 
+that overlap the coastline we only include the area that is within the ocean. 
+In some sense, this provides a smaller grid along the coastline.
+```{r}
 fishing_ocean_intersect <- sf::st_intersection(x = ocean_cea_sf, fishing_polygon_sf)
 ```
 
@@ -159,25 +158,26 @@ ggplot() +
 
 
 #### Same analysis using previous fishing raster
-
+Here we illustrate the same calculation using a fishing raster that
+was generated using an earlier version of the fishing effort dataset. This dataset
+may have overemphasized squid-jigger fishing.
 ```{r}
 fishing_raster_05_old <- raster('~/Documents/GlobalFishingWatch/Projects/Global_raster_paper/oceans_equal_area/fishing_raster_05.tif')
 ```
 
-For simplicity areas of fishing a value of 1 and those without NA.
+Analysis same as before: Convert grid cells with fishing to 1's and grid cells without fishing to NA.
 ```{r}
 fishing_raster_05_old[fishing_raster_05_old[] > 0] <- 1 
 fishing_raster_05_old[fishing_raster_05_old[] <= 0] <- NA 
 ```
 
-A quick visual check to see if the raster looks appropriate (though it will not yet have the appropriate projection)
+A quick visual check to see if the raster looks appropriate (though it will not yet have the appropriate projection).
 ```{r}
 plot(fishing_raster_05_old)
 ```
 
-Convert the raster to a vector which makes it possible to compare with the oceans vector.
-
-```{r, cache=TRUE}
+Convert the raster to a vector, which makes it possible to compare with the oceans vector.
+```{r}
 #raster to polygon using maximum number of vertices (n = 16)
 fishing_polygon_old <- rasterToPolygons(fishing_raster_05_old, dissolve = TRUE, n = 16)
 #convert Spatial dataframe to Simple features
@@ -189,7 +189,7 @@ fishing_polygon_old_sf <- st_transform(fishing_polygon_old_sf, crs = "+proj=cea 
 
 Identify where the fishing and ocean vector files intersect. Ensures we clip the
 fishing raster to the ocean.
-```{r, cache=TRUE}
+```{r}
 fishing_old_ocean_intersect <- sf::st_intersection(x = ocean_cea_sf, fishing_polygon_old_sf)
 ```
 
@@ -200,3 +200,5 @@ ocean_area <- st_area(ocean_cea_sf)
 (fishing_area_old/ocean_area) * 100
 ```
 
+
+Note that this value is ~55%
