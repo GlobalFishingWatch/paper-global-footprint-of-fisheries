@@ -135,6 +135,11 @@ fishing_polygon_sf <- st_as_sf(fishing_polygon)
 fishing_polygon_sf <- st_transform(fishing_polygon_sf, crs = "+proj=cea +lon_0=0 +lat_ts=45 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs")
 ```
 
+```{r}
+ggplot() +
+    geom_sf(data = fishing_polygon_sf, fill = 'tomato')
+```
+
 
 Identify where the fishing and ocean vector files intersect. Ensures that for grid cells 
 that overlap the coastline we only include the area that is within the ocean. 

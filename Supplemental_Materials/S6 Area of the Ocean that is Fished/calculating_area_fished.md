@@ -153,6 +153,13 @@ fishing_polygon_sf <- st_as_sf(fishing_polygon)
 fishing_polygon_sf <- st_transform(fishing_polygon_sf, crs = "+proj=cea +lon_0=0 +lat_ts=45 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs")
 ```
 
+``` r
+ggplot() +
+    geom_sf(data = fishing_polygon_sf, fill = 'tomato')
+```
+
+![](calculating_area_fished_files/figure-markdown_github/unnamed-chunk-16-1.png)
+
 Identify where the fishing and ocean vector files intersect. Ensures that for grid cells that overlap the coastline we only include the area that is within the ocean. In some sense, this provides a smaller grid along the coastline.
 
 ``` r
@@ -175,7 +182,7 @@ ggplot() +
     geom_sf(data = fishing_ocean_intersect, fill = 'dodgerblue')
 ```
 
-![](calculating_area_fished_files/figure-markdown_github/unnamed-chunk-18-1.png)
+![](calculating_area_fished_files/figure-markdown_github/unnamed-chunk-19-1.png)
 
 #### Same analysis using previous fishing raster
 
@@ -198,7 +205,7 @@ A quick visual check to see if the raster looks appropriate (though it will not 
 plot(fishing_raster_05_old)
 ```
 
-![](calculating_area_fished_files/figure-markdown_github/unnamed-chunk-21-1.png)
+![](calculating_area_fished_files/figure-markdown_github/unnamed-chunk-22-1.png)
 
 Convert the raster to a vector, which makes it possible to compare with the oceans vector.
 
