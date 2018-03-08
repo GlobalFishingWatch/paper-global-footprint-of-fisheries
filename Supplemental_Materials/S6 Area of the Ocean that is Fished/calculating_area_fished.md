@@ -1,6 +1,8 @@
 Area of the Ocean that is Fished
 ================
 
+Analysis by Nate Miller
+
 Load packages
 
 ``` r
