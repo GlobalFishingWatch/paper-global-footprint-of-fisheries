@@ -1,0 +1,413 @@
+---
+title: "Fishing Coverage- Equal Area Projection"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r echo = FALSE, message=FALSE, comment=FALSE}
+library(tidyverse)
+library(viridis)
+library(extrafont)
+library(bigrquery)
+library(rgdal)
+library(rgeos)
+library(ggalt)
+library(printr)
+loadfonts()
+BQ_connection <-  dbConnect(dbi_driver(), dataset = "", project = "world-fishing-827")
+```
+
+This notebook calculates the area of the ocean over which fishing by all gear 
+types takes place, as well as fishing by the three (3) primary geartypes described
+in the manuscript (drifting longlines, trawlers, purse seines).
+
+The code starts with an example using all fishing and is then followed by
+individual analyses for each gear type.
+
+Query to generate total fishing raster at 0.5 degree resolution.
+```{sql connection = BQ_connection, output.var = "total_fishing_effort_05"}
+SELECT
+ SUM(hours) hours,
+ FLOOR(lat/0.5)*0.5 lat_bin,
+ FLOOR(lon/0.5)*0.5 lon_bin
+FROM (
+ SELECT
+   *
+ FROM (
+   SELECT
+     mmsi,
+     hours,
+     seg_id,
+     lat,
+     lon
+   FROM
+    [gfw_research.nn]
+    /*[gfw_research.FAO] */
+   WHERE
+   _PARTITIONTIME BETWEEN TIMESTAMP('2016-01-01') AND TIMESTAMP('2016-12-31')
+   AND
+     nnet_score >.5 ) /*measure_new_score */
+ WHERE
+   seg_id IN (
+    SELECT seg_id FROM [world-fishing-827:gfw_research.segments2]
+        WHERE point_count > 20 
+        AND max_lat - min_lat > .01 
+        AND max_lon - min_lon > .01
+        AND NOT (point_count<10
+    AND terrestrial_positions = point_count)
+  AND NOT ((min_lon >= 0 /* these are almost definitely noise*/
+      AND max_lon <= 0.109225)
+    OR (min_lat >= 0
+      AND max_lat <= 0.109225) OR
+      (min_lat <= -0.109225 AND
+      max_lat <= 0))) /*must move 100 meters in lat and lon*/
+AND mmsi IN (SELECT mmsi from [gfw_research.vessel_info_20170522] WHERE on_fishing_list_nn) 
+AND mmsi not in (SELECT mmsi from [world-fishing-827:gfw_research.vessel_info_20170522] WHERE offsetting)
+AND mmsi not in (725000332,
+    725000910,
+    725000335,
+    725000410) /*trawlers off chile classified as PS*/
+AND mmsi not in (224084620, 224107670) /* trawlers South Atlantic as PS*/
+AND mmsi not in (431560000, 431757000, 432846000) /*Western Pacific research as PS*/
+AND mmsi not in (431704470, 431267000, 431800050) /*north west pacific, squid jiggers as PS, and research vessel FRA */
+AND mmsi not in (416000002) /* south atlantic */
+ANd mmsi not in (431700260, 431797000,431704490) /* offsetting longliners, Panama */
+and mmsi not in (412421007) /* DL track in EEZ north Pacific */
+And mmsi not in (413322690,413322770) /*DL track in EEZ near NZ, good longliners, odd fishing */
+AND mmsi not in (412420971, 412420973) /* odd squid jiggers tracking across Pacific */
+AND mmsi not in (416121800) /*south Pacific track across EEZ */
+AND mmsi NOT IN (412421005) /*squid jigger appears to be fishing across southern Atlantic during transit */
+AND mmsi NOT IN (441051000,412420001) /*trawler, transitting south Atlantic */
+AND mmsi NOT IN (432288000) /* research vessel, track across West Pacific EEZ, listed as drifting longliner */ ) a
+INNER JOIN
+ (SELECT
+ mmsi
+FROM
+ [scratch_david_mmsi_lists.nn_labels_20170516]
+where label IN ("fixed_gear",
+   "drifting_longlines",
+   "other_fishing",
+   "trawlers",
+   "purse_seines",
+   "squid_jigger")
+and mmsi in (SELECT mmsi from  [scratch_david_mmsi_lists.nn_labels_2016_20170516]
+WHERE label IN ("fixed_gear",
+   "drifting_longlines",
+   "other_fishing",
+   "trawlers",
+   "purse_seines",
+   "squid_jigger")
+)) b
+ON
+ a.mmsi = b.mmsi
+GROUP BY
+ lat_bin,
+ lon_bin)
+```
+
+Generate a grid of points at 0.5 
+```{r}
+#nrow(total_fishing_effort_05)
+
+grid_latlon <- expand.grid(lat =seq(min(total_fishing_effort_05$lat_bin),
+                                    max(total_fishing_effort_05$lat_bin), 0.5), 
+                           lon = seq(min(total_fishing_effort_05$lon_bin),
+                                     max(total_fishing_effort_05$lon_bin), 0.5))
+
+```
+
+Join the global grid to the global fishing data. Assign locations with no fishing
+a fishing value of 0.
+```{r}
+gridded_fishing = left_join(grid_latlon, total_fishing_effort_05, by = c('lat' = 'lat_bin', 'lon' = 'lon_bin'))
+gridded_fishing$hours = ifelse(is.na(gridded_fishing$hours), 0, gridded_fishing$hours)
+#gridded_fishing %>% filter(hours == 0) %>% summarize(n())
+#nrow(gridded_fishing) - gridded_fishing %>% filter(hours == 0) %>% summarize(n())
+```
+
+Convert fishing effort dataframe into a spatial dataframe (specify lon and lat as x, y)
+```{r}
+library(sp)
+library(rgdal)
+coordinates(gridded_fishing)=~lon+lat
+```
+
+Assign a projection to the gridded fishing effort
+```{r}
+proj4string(gridded_fishing)=CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") # set it to lat-long
+#gridded_fishing = spTransform(gridded_fishing,CRS("+proj=cea +lon_0=0 +x_0=0 +y_0=0 +lat_ts=45 +datum=WGS84 +units=m +no_defs"))
+
+#ensure fishing in on regular grid
+gridded(gridded_fishing) = TRUE
+```
+
+
+Generate the fishing effort raster. Specify original projection and extent, 
+then project the raster into Gall-Peters equal area
+```{r}
+library(raster)
+fishing_raster_05 = rasterFromXYZ(gridded_fishing, crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
+bb = extent(-180, 180, -78.8, 81.8)
+fishing_raster_05 = setExtent(fishing_raster_05, bb, keepres = TRUE)
+fishing_raster_05 = projectRaster(fishing_raster_05, crs = "+proj=cea +lon_0=0 +x_0=0 +y_0=0 +lat_ts=45 +datum=WGS84 +units=m +no_defs", over = TRUE) #this is Gall-Peters Equal Area Projection
+```
+
+
+Export raster which is then analyzed in QGIS (See outline below).
+```{r, eval=FALSE}
+writeRaster(fishing_raster_05, '~/Documents/GlobalFishingWatch/Global_raster_paper/oceans_equal_area/fishing_raster_05_round2.tif', format = 'GTiff', overwrite = TRUE)
+```
+
+### Loading the oceans shapefile
+```{r}
+setwd("~/Documents/GlobalFishingWatch/oceans_equal_area/")
+oceans <- readOGR('.', "oceans_gallpeters")
+oceans_df = fortify(oceans)
+```
+
+
+
+
+Building upon this post:
+https://gis.stackexchange.com/questions/147158/how-to-calculate-the-area-of-a-raster-within-a-polygon-which-is-greater-than-a-s
+
+Then in QGIS:
+*1 Import both the raster and the gall_peters projected oceans shapefile (oceans
+shapefile from natural earth http://www.naturalearthdata.com/downloads/10m-physical-vectors/).
+*2 Within raster tools, use Raster Calculator to calculate where the fishing value is greater than 0. 
+fishing_raster_05@1 > 0, this is a Boolean that gives 1 if true, 0 if false and generates a new raster of 0/1.
+*3 Then use the Zonal Statistics (under Raster) to generate the mean value for this 0/1 raster within the oceans polygon.
+* This represents the percentage of the ocean that is fished. Knowing the areas of the polygon one could calculate the actual area fished.
+
+For the total effort raster = 56.4%
+
+## For each gear type % of total ocean (% of total area fished)
+These data arise from analysis below
+
+longline = 45.7% or (81%)
+trawler = 9.7% or (17.2%)
+purse = 17.1% or (30.3%)
+
+
+Using the field calculator and the Gall-Peters projected oceans shapefile I calculated an area of the shapefile
+Attributes Table -> Field Calculator -> area($geometry) in square meters. 363223868892795 m2
+Converting to square kilometers the value agrees with values reported online: #363223868 km2
+
+Total area fished = 0.56 * 363223868 = 203,405,366 km2 or 2.03 x 10^8 km2
+
+
+```{r}
+# % of whole ocean
+total_fishing_percent = 0.564
+longliner_percent = 0.457
+trawler_percent = 0.097
+purse_seine_percent = 0.171
+
+
+#for the total ocean
+total_ocean_area_km2 = 363223868
+
+total_fished_area = total_fishing_percent * total_ocean_area_km2
+longliner_ocean = longliner_percent * total_ocean_area_km2
+trawler_ocean = trawler_percent * total_ocean_area_km2
+purse_seine_ocean = purse_seine_percent * total_ocean_area_km2
+
+
+df = data.frame(gear_type = c('total','longliner', 'trawler', 'purse_seine'),
+                area_of_ocean_fished = c(total_fished_area, longliner_ocean, trawler_ocean, purse_seine_ocean))
+df
+
+```
+
+ANALYSIS/DATA for individual gear types following methods outlines in detail
+above.
+
+### Run the query to get the fishing effort by type so that individual rasters 
+can be created for each gear type
+
+```{sql connection = BQ_connection, output.var = "fishing_effort_by_type_05"}
+SELECT
+ SUM(hours) hours,
+ FLOOR(lat/0.5)*0.5 lat_bin,
+ FLOOR(lon/0.5)*0.5 lon_bin,
+ label
+FROM (
+ SELECT
+   *
+ FROM (
+   SELECT
+     mmsi,
+     hours,
+     seg_id,
+     lat,
+     lon
+   FROM
+    [gfw_research.nn]
+   WHERE
+   _PARTITIONTIME BETWEEN TIMESTAMP('2016-01-01') AND TIMESTAMP('2016-12-31')
+   AND
+     nnet_score >.5 )
+ WHERE
+seg_id IN (
+    SELECT seg_id FROM [world-fishing-827:gfw_research.segments2]
+        WHERE point_count > 20 
+        AND max_lat - min_lat > .01 
+        AND max_lon - min_lon > .01
+        AND NOT (point_count<10
+    AND terrestrial_positions = point_count)
+  AND NOT ((min_lon >= 0 /* these are almost definitely noise*/
+      AND max_lon <= 0.109225)
+    OR (min_lat >= 0
+      AND max_lat <= 0.109225) OR
+      (min_lat <= -0.109225 AND
+      max_lat <= 0))) /*must move 100 meters in lat and lon*/
+AND mmsi IN (SELECT mmsi from [gfw_research.vessel_info_20170522] WHERE on_fishing_list_nn) 
+AND mmsi not in (SELECT mmsi from [world-fishing-827:gfw_research.vessel_info_20170522] WHERE offsetting)
+AND mmsi not in (725000332,
+    725000910,
+    725000335,
+    725000410) /*trawlers off chile classified as PS*/
+AND mmsi not in (224084620, 224107670) /* trawlers South Atlantic as PS*/
+AND mmsi not in (431560000, 431757000, 432846000) /*Western Pacific research as PS*/
+AND mmsi not in (431704470, 431267000, 431800050) /*north west pacific, squid jiggers as PS, and research vessel FRA */
+AND mmsi not in (416000002) /* south atlantic */
+ANd mmsi not in (431700260, 431797000,431704490) /* offsetting longliners, Panama */
+and mmsi not in (412421007) /* DL track in EEZ north Pacific */
+And mmsi not in (413322690,413322770) /*DL track in EEZ near NZ, good longliners, odd fishing */
+AND mmsi not in (412420971, 412420973) /* odd squid jiggers tracking across Pacific */
+AND mmsi not in (416121800) /*south Pacific track across EEZ */
+AND mmsi NOT IN (760000650) /*oil products tanker, off Peru, labeled as trawler */
+AND mmsi NOT IN (412421005) /*squid jigger appears to be fishing across southern Atlantic during transit */
+AND mmsi NOT IN (413201110) /*longliner, currently classified as a trawler (mid-Atlantic) */
+AND mmsi NOT IN (432288000) /* research vessel, track across West Pacific EEZ, listed as drifting longliner */
+/*mmsi NOT IN (432621000,431028000,431494000, 432850000,9102213,112420884,150200144,150200148,150200162,150200250,150200252,150200389,150200783,150200893,150200895,150200974,150201019,150201073,150201423,150201498,150201517,150201536,150201550,150201552,150201776,150202857,150202858,150202904,150203018,150203019,150203020,150203021,150203022,158888888,200000590,200000596,200000598,200000599,411041802,412071033,412200146,412200991,412207532,412207533,412207535,412207536,412207537,412207538,412207539,412207541,412207542,412207545,412207546,412209011,412209092,412209093,412209097,412209098,412209099,412209101,412209102,412209105,412209106,412209132,412209133,412209136,412209139,412209141,412209168,412209171,412209172,412211196,412211691,412322329,412322547,412322587,412322866,412322952,412322953,412322984,412323207,412326016,412327269,412327285,412327422,412327493,412328279,412328794,412329642,412329643,412329644,412331106,412331107,412331109,412331111,412331112,412333121,412364066,412364739,412401220,412402610,412411514,412411515,412411519,412411529,412412981,412418059,412419955,412419958,412420248,412420276,412420421,412420453,412420502,412420503,412420561,412420573,412420574,412420575,412420576,412420684,412420787,412420789,412420805,412420833,412420871,412420878,412420879,412420881,412420882,412420883,412420885,412420886,412425706,412437961,412437962,412440077,412440078,412440104,412440105,412440106,412440113,412440255,412440256,412440257,412440258,412440259,412440261,412440377,412447093,412480433,412480434,412661896,412693030,412699340,413035015,413066568,413322650,413685698,414203586,415000005,441301074,462801187,800011282,800016350,800017747,800017800,800018712,800019446,800030681,812411524,900007134,900007138,900007140,900007148,900007154,900023867,900025166,900025206,900025236,900025344,900025350,900025357,900025393,900025395,910060382)  vessels with offset positions
+AND mmsi NOT IN (SELECT mmsi FROM [world-fishing-827:scratch_david_mmsi_lists.research_20170522] research/training vessels)
+and mmsi not in (987357573,987357579,987357559,986737000,983712160,987357529,987357559,987357579)  helicopters */) a
+INNER JOIN
+ (SELECT
+ mmsi,
+ label
+FROM
+ [scratch_david_mmsi_lists.nn_labels_20170516]
+where label IN ("fixed_gear",
+   "drifting_longlines",
+   "other_fishing",
+   "trawlers",
+   "purse_seines",
+   "squid_jigger")
+and mmsi in (SELECT mmsi from  [scratch_david_mmsi_lists.nn_labels_2016_20170516]
+WHERE label IN ("fixed_gear",
+   "drifting_longlines",
+   "other_fishing",
+   "trawlers",
+   "purse_seines",
+   "squid_jigger")
+)) b
+ON
+ a.mmsi = b.mmsi
+GROUP BY
+ lat_bin,
+ lon_bin,
+label)
+```
+
+Separate out the different gear types
+
+```{r}
+purse_seine_effort_05 = fishing_effort_by_type_05 %>% 
+  filter(inferred_label == 'purse_seines'& lat_bin > -90 & lat_bin < 90)
+
+
+longline_effort_05 = fishing_effort_by_type_05 %>%
+    filter(inferred_label == 'drifting_longlines'& lat_bin > -90 & lat_bin < 85)
+
+trawler_effort_05 = fishing_effort_by_type_05 %>%
+    filter(inferred_label == 'trawlers' & lat_bin > -90 & lat_bin < 90) 
+```
+
+
+### Longliners
+Apply the gridded lat lon and replace the NA values with 0
+
+```{r}
+gridded_fishing_longliner = left_join(grid_latlon, longline_effort_05, by = c('lat' = 'lat_bin', 'lon' = 'lon_bin'))
+gridded_fishing_longliner$hours = ifelse(is.na(gridded_fishing_longliner$hours), 0, gridded_fishing_longliner$hours)
+```
+
+Same as above, generate a spatial dataframe and then a raster with the Gall-Peters projections
+```{r}
+coordinates(gridded_fishing_longliner)=~lon+lat
+```
+
+
+
+```{r}
+gridded_raster_longliner = rasterFromXYZ(gridded_fishing_longliner, crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") #specify original projections as longlat
+bb = extent(-180, 180, -90, 90) #specify the extent
+gridded_raster_longliner = setExtent(gridded_raster_longliner, bb, keepres = TRUE) #apply extent
+gridded_raster_longliner = projectRaster(gridded_raster_longliner, crs = "+proj=cea +lon_0=0 +x_0=0 +y_0=0 +lat_ts=45 +datum=WGS84 +units=m +no_defs", over = TRUE) #project the raster into the Gall-Peters Equal Area Projection
+```
+
+
+```{r, eval = FALSE}
+writeRaster(gridded_raster_longliner, '~/Documents/GlobalFishingWatch/oceans_equal_area/fishing_raster_05_longliner.tif', format = 'GTiff', overwrite = TRUE)
+```
+
+### Trawlers
+
+```{r}
+gridded_fishing_trawler = left_join(grid_latlon, trawler_effort_05, by = c('lat' = 'lat_bin', 'lon' = 'lon_bin'))
+gridded_fishing_trawler$hours = ifelse(is.na(gridded_fishing_trawler$hours), 0, gridded_fishing_trawler$hours)
+```
+
+
+```{r}
+coordinates(gridded_fishing_trawler)=~lon+lat
+```
+
+
+
+```{r}
+gridded_raster_trawler = rasterFromXYZ(gridded_fishing_trawler, crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") #specify original projections as longlat
+bb = extent(-180, 180, -90, 90) #specify the extent
+gridded_raster_trawler = setExtent(gridded_raster_trawler, bb, keepres = TRUE) #apply extent
+gridded_raster_trawler = projectRaster(gridded_raster_trawler, crs = "+proj=cea +lon_0=0 +x_0=0 +y_0=0 +lat_ts=45 +datum=WGS84 +units=m +no_defs", over = TRUE) #project the raster into the Gall-Peters Equal Area Projection
+```
+
+
+```{r, eval = FALSE}
+writeRaster(gridded_raster_trawler, '~/Documents/GlobalFishingWatch/oceans_equal_area/fishing_raster_05_trawler.tif', format = 'GTiff', overwrite = TRUE)
+```
+
+
+
+### Purse seines
+
+```{r}
+gridded_fishing_purseseine = left_join(grid_latlon, purse_seine_effort_05, by = c('lat' = 'lat_bin', 'lon' = 'lon_bin'))
+gridded_fishing_purseseine$hours = ifelse(is.na(gridded_fishing_purseseine$hours), 0, gridded_fishing_purseseine$hours)
+```
+
+
+```{r}
+coordinates(gridded_fishing_purseseine)=~lon+lat
+```
+
+
+
+```{r}
+gridded_raster_purseseine = rasterFromXYZ(gridded_fishing_purseseine, crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") #specify original projections as longlat
+bb = extent(-180, 180, -90, 90) #specify the extent
+gridded_raster_purseseine = setExtent(gridded_raster_purseseine, bb, keepres = TRUE) #apply extent
+gridded_raster_purseseine = projectRaster(gridded_raster_purseseine, crs = "+proj=cea +lon_0=0 +x_0=0 +y_0=0 +lat_ts=45 +datum=WGS84 +units=m +no_defs", over = TRUE) #project the raster into the Gall-Peters Equal Area Projection
+```
+
+
+```{r, eval=FALSE}
+writeRaster(gridded_raster_purseseine, '~/Documents/GlobalFishingWatch/oceans_equal_area/fishing_raster_05_purseseine.tif', format = 'GTiff', overwrite = TRUE)
+```
+
