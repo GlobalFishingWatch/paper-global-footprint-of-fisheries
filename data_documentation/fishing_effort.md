@@ -13,7 +13,7 @@ For additional information about these results, see the associated journal artic
 
 For updates, links to example code, and more, visit:
 
- - [Global Fishing Watch R&D Site](globalfishingwatch.io/global-footprint-of-fisheries.html)
+ - [Global Fishing Watch R&D Site](http://globalfishingwatch.io/global-footprint-of-fisheries.html)
  - [GitHub Repo for Tracking the Global Footprint of Fisheries](https://github.com/GlobalFishingWatch/global-footprint-of-fisheries/tree/master/data_documentation)
 
 Description: Fishing effort and vessel presence is binned into grid cells 0.01 degrees on a side, and measured in units of hours. The time is calculated by assigning an amount of time to each AIS detection (which is half the time to the previous plus half the time to the next AIS position), and then summing all positions in each grid cell. Data is based on fishing detections of >70,000 unique AIS devices on fishing vessels. Fishing vessels are identified via a neural network classifier and vessel registry databases. Fishing effort for squid jiggers is not calculated through the neural network, but instead through [this heuristic](https://github.com/GlobalFishingWatch/global-footprint-of-fisheries/blob/master/data_production/updated-algorithm-for-squid-jiggers.md). The neural net classifies fishing vessels into six categories:
