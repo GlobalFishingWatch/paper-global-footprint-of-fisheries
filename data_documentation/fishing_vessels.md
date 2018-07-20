@@ -6,7 +6,7 @@ These data are available in the following formats:
  - BigQuery Tables
  - CSVs
 
-Links to these data are available at [Global Fishing Watch's community page](https://globalfishingwatch.force.com/gfw/s/data_download).
+Links to these data are available at [Global Fishing Watch's community page](https://globalfishingwatch.force.com/gfw/s/data-download).
 
 For additional information about these results, see the associated journal article: [D.A. Kroodsma, J. Mayorga, T. Hochberg, N.A. Miller, K. Boerder, F. Ferretti, A. Wilson, B. Bergman, T.D. White, B.A. Block, P. Woods, B. Sullivan, C. Costello, and B. Worm. "Tracking the global footprint of fisheries." Science 361.6378 (2018).](http://science.sciencemag.org/content/359/6378/904)
 
